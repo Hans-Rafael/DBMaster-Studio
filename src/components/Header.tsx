@@ -21,19 +21,19 @@ export const Header: React.FC<HeaderProps> = ({
   const totalExercises = userProgress.completedExercises.length;
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-950/90 border-b border-slate-800 text-slate-100 backdrop-blur-md">
+    <header className="sticky top-0 z-40 bg-slate-950/95 border-b border-slate-800 text-slate-100 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           
           {/* Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('study')}>
-            <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl shadow-lg shadow-blue-500/30 text-white">
-              <Database className="w-5 h-5" />
+          <div className="flex items-center space-x-4 cursor-pointer" onClick={() => setActiveTab('study')}>
+            <div className="p-3 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl shadow-lg shadow-blue-500/30 text-white">
+              <Database className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-lg tracking-tight uppercase text-white">
-                  DBMaster <span className="text-blue-500 font-black">Studio</span>
+                <span className="font-extrabold text-xl sm:text-2xl tracking-tight uppercase text-white">
+                  DBMaster <span className="text-blue-400 font-black">Studio</span>
                 </span>
                 <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full hidden sm:inline-block">
                   Bento Grid Studio
