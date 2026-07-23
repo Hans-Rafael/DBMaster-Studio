@@ -4,15 +4,16 @@ services:
     runtime: node
     plan: free
     buildCommand: npm run build
-    startCommand: npm start
+    startCommand: node dist/server.cjs
+    publishDir: dist
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: ADMIN_KEY
-        generateValue: true
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
