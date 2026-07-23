@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: dbmaster-studio
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false

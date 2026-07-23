@@ -8,6 +8,7 @@ import { ExerciseRunner } from './components/ExerciseRunner';
 import { AiTutorModal } from './components/AiTutorModal';
 import { VisualJoinHelper } from './components/VisualJoinHelper';
 import { PythonConnectorsView } from './components/PythonConnectorsView';
+import { LoginScreen } from './components/LoginScreen';
 
 import { POSTGRESQL_MODULES } from './data/modulesPostgreSQL';
 import { MONGO_GRAPHQL_MODULES } from './data/modulesMongoGraphQL';
@@ -17,6 +18,50 @@ import { Module, Topic, UserProgress, EngineType } from './types/database';
 
 export function App() {
   const allModules: Module[] = [...POSTGRESQL_MODULES, ...MONGO_GRAPHQL_MODULES];
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Verificar autenticación al cargar
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        setIsAuthenticated(data.authenticated);
+      } catch (error) {
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Error al hacer logout:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-slate-400">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const [activeTab, setActiveTab] = useState<'study' | 'playground' | 'quizzes' | 'exercises' | 'joins' | 'python'>('study');
   
@@ -121,6 +166,7 @@ export function App() {
         setActiveTab={setActiveTab}
         userProgress={userProgress}
         onOpenAiTutor={() => handleAskAiTutor('Consulta libre sobre bases de datos')}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Body */}

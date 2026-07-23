@@ -3,13 +3,113 @@ import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import cookieParser from "cookie-parser";
+import { 
+  createTempPassword, 
+  verifyTempPassword, 
+  verifyToken, 
+  getActivePasswords, 
+  deletePassword 
+} from "./auth";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-change-in-production';
 
 app.use(express.json());
+app.use(cookieParser());
+
+// Middleware de autenticación
+const requireAuth = (req: any, res: any, next: any) => {
+  const token = req.cookies.auth_token;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+
+  req.user = decoded;
+  next();
+};
+
+// Middleware de autenticación para admin
+const requireAdmin = (req: any, res: any, next: any) => {
+  const adminKey = req.headers['x-admin-key'];
+  
+  if (adminKey !== ADMIN_KEY) {
+    return res.status(403).json({ error: 'No autorizado como admin' });
+  }
+
+  next();
+};
+
+// Rutas de autenticación
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({ error: 'Se requiere contraseña' });
+    }
+
+    const token = await verifyTempPassword(password);
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Contraseña inválida o expirada' });
+    }
+
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+    });
+
+    res.json({ success: true, message: 'Login exitoso' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('auth_token');
+  res.json({ success: true, message: 'Logout exitoso' });
+});
+
+app.get('/api/auth/check', (req, res) => {
+  const token = req.cookies.auth_token;
+  const decoded = token ? verifyToken(token) : null;
+  res.json({ authenticated: !!decoded });
+});
+
+// Rutas de admin para gestión de contraseñas
+app.post('/api/admin/passwords', requireAdmin, async (req, res) => {
+  try {
+    const result = await createTempPassword();
+    res.json({
+      id: result.id,
+      password: result.password,
+      expiresAt: result.expiresAt
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al generar contraseña' });
+  }
+});
+
+app.get('/api/admin/passwords', requireAdmin, (req, res) => {
+  res.json(getActivePasswords());
+});
+
+app.delete('/api/admin/passwords/:id', requireAdmin, (req, res) => {
+  const deleted = deletePassword(req.params.id);
+  res.json({ success: deleted });
+});
 
 // Initialize Gemini Client
 const apiKey = process.env.GEMINI_API_KEY;
@@ -32,7 +132,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 // AI Tutor Chat / Assistant API
-app.post("/api/gemini/tutor", async (req, res) => {
+app.post("/api/gemini/tutor", requireAuth, async (req, res) => {
   try {
     if (!aiClient) {
       return res.status(500).json({
@@ -68,7 +168,7 @@ Cuando expliques consultas de PostgreSQL, resalta buenas prácticas, diferencias
 });
 
 // AI Query Explainer API
-app.post("/api/gemini/explain-query", async (req, res) => {
+app.post("/api/gemini/explain-query", requireAuth, async (req, res) => {
   try {
     if (!aiClient) {
       return res.status(500).json({
@@ -98,7 +198,7 @@ app.post("/api/gemini/explain-query", async (req, res) => {
 });
 
 // AI Exercise Evaluator API
-app.post("/api/gemini/evaluate", async (req, res) => {
+app.post("/api/gemini/evaluate", requireAuth, async (req, res) => {
   try {
     if (!aiClient) {
       return res.status(500).json({

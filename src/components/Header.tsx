@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, Sparkles, BookOpen, Terminal, HelpCircle, Award, Code2, Layers } from 'lucide-react';
+import { Database, Sparkles, BookOpen, Terminal, HelpCircle, Award, Code2, Layers, LogOut } from 'lucide-react';
 import { UserProgress } from '../types/database';
 
 interface HeaderProps {
@@ -7,6 +7,7 @@ interface HeaderProps {
   setActiveTab: (tab: 'study' | 'playground' | 'quizzes' | 'exercises' | 'joins' | 'python') => void;
   userProgress: UserProgress;
   onOpenAiTutor: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   userProgress,
   onOpenAiTutor,
+  onLogout,
 }) => {
   const totalCompleted = userProgress.completedTopics.length;
   const totalExercises = userProgress.completedExercises.length;
@@ -120,6 +122,17 @@ export const Header: React.FC<HeaderProps> = ({
               <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
               <span>Tutor IA Gemini</span>
             </button>
+
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
+            )}
           </div>
 
         </div>
