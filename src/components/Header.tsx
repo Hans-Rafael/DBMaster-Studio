@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
                   DBMaster <span className="text-blue-400 font-black">Studio</span>
                 </span>
                 <span className="text-[10px] font-bold tracking-widest uppercase px-2.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/30 rounded-full hidden sm:inline-block">
-                  Bento Grid Studio
+                  Plataforma para Aprender Bases de Datos
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 font-mono hidden sm:block">PostgreSQL · MongoDB · GraphQL Studio</p>
