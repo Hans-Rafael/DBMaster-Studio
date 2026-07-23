@@ -9,7 +9,11 @@
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.cjs",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "admin:generate": "node admin-cli.cjs generate",
+    "admin:list": "node admin-cli.cjs list",
+    "admin:delete": "node admin-cli.cjs delete",
+    "admin:help": "node admin-cli.cjs help"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -149,18 +149,17 @@ async function deletePassword(passwordId) {
 function showHelp() {
   log('🔧 DBMaster Studio - Herramienta de Administración', 'cyan');
   log('');
-  log('Uso: node admin-cli.js [comando] [opciones]', 'yellow');
+  log('Uso con npm:', 'yellow');
+  log('  npm run admin:generate    Generar una nueva contraseña temporal', 'green');
+  log('  npm run admin:list        Listar todas las contraseñas activas', 'green');
+  log('  npm run admin:delete [id] Eliminar una contraseña específica', 'green');
+  log('  npm run admin:help        Mostrar esta ayuda', 'green');
   log('');
-  log('Comandos:', 'cyan');
-  log('  generate    Generar una nueva contraseña temporal', 'green');
-  log('  list        Listar todas las contraseñas activas', 'green');
-  log('  delete [id] Eliminar una contraseña específica', 'green');
-  log('  help        Mostrar esta ayuda', 'green');
-  log('');
-  log('Ejemplos:', 'cyan');
-  log('  node admin-cli.js generate', 'yellow');
-  log('  node admin-cli.js list', 'yellow');
-  log('  node admin-cli.js delete abc123', 'yellow');
+  log('Uso directo:', 'yellow');
+  log('  node admin-cli.cjs generate', 'green');
+  log('  node admin-cli.cjs list', 'green');
+  log('  node admin-cli.cjs delete [id]', 'green');
+  log('  node admin-cli.cjs help', 'green');
   log('');
   log('Configuración:', 'cyan');
   log(`  Servidor: ${SERVER_URL}`, 'yellow');
