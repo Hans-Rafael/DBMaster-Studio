@@ -17,10 +17,9 @@ import { PRACTICAL_EXERCISES } from './data/exercisesData';
 import { Module, Topic, UserProgress, EngineType } from './types/database';
 
 export function App() {
-  const allModules: Module[] = [...POSTGRESQL_MODULES, ...MONGO_GRAPHQL_MODULES];
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Verificar autenticación al cargar
   useEffect(() => {
@@ -53,8 +52,8 @@ export function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-400">Cargando...</div>
+      <div style={{ backgroundColor: '#020617', color: 'white', padding: '20px', minHeight: '100vh' }}>
+        <div>Cargando...</div>
       </div>
     );
   }
@@ -63,20 +62,30 @@ export function App() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // App principal con manejo de errores
+  try {
+    return <MainApp onLogout={handleLogout} />;
+  } catch (error) {
+    return (
+      <div style={{ backgroundColor: '#020617', color: 'white', padding: '20px', minHeight: '100vh' }}>
+        <h1>Error en la aplicación</h1>
+        <p>{String(error)}</p>
+        <button onClick={() => window.location.reload()}>Recargar</button>
+      </div>
+    );
+  }
+}
+
+function MainApp({ onLogout }: { onLogout: () => void }) {
+  const allModules: Module[] = [...POSTGRESQL_MODULES, ...MONGO_GRAPHQL_MODULES];
   const [activeTab, setActiveTab] = useState<'study' | 'playground' | 'quizzes' | 'exercises' | 'joins' | 'python'>('study');
-  
   const [selectedModule, setSelectedModule] = useState<Module>(allModules[0]);
   const [selectedTopic, setSelectedTopic] = useState<Topic>(allModules[0].topics[0]);
-
-  // Playground state overrides
   const [playgroundCode, setPlaygroundCode] = useState<string>('');
   const [playgroundEngine, setPlaygroundEngine] = useState<EngineType>('postgresql');
-
-  // AI Tutor Modal state
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
   const [aiContext, setAiContext] = useState<string>('');
 
-  // User Progress persisted in localStorage
   const [userProgress, setUserProgress] = useState<UserProgress>(() => {
     const saved = localStorage.getItem('dbmaster_user_progress');
     if (saved) {
@@ -140,7 +149,6 @@ export function App() {
     });
   };
 
-  // Find next topic for lesson viewer navigation
   const getNextTopic = () => {
     const currentTopics = selectedModule.topics;
     const currentIdx = currentTopics.findIndex(t => t.id === selectedTopic.id);
@@ -159,20 +167,15 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-blue-500 selection:text-white">
-      
-      {/* Header */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         userProgress={userProgress}
         onOpenAiTutor={() => handleAskAiTutor('Consulta libre sobre bases de datos')}
-        onLogout={handleLogout}
+        onLogout={onLogout}
       />
 
-      {/* Main Content Body */}
       <div className="flex-1 flex overflow-hidden">
-        
-        {/* Sidebar for Study Mode */}
         {activeTab === 'study' && (
           <aside className="w-80 shrink-0 hidden lg:block h-[calc(100vh-4rem)]">
             <ModuleList
@@ -184,12 +187,9 @@ export function App() {
           </aside>
         )}
 
-        {/* Dynamic Center View */}
         <main className="flex-1 overflow-y-auto min-w-0 pb-12">
-          
           {activeTab === 'study' && selectedTopic && (
             <div>
-              {/* Mobile Module Selector Bar */}
               <div className="lg:hidden p-4 bg-slate-900 border-b border-slate-800">
                 <label className="text-xs font-bold text-slate-400 block mb-1 uppercase tracking-wider">
                   Seleccionar Lección:
@@ -263,17 +263,14 @@ export function App() {
           {activeTab === 'joins' && <VisualJoinHelper />}
 
           {activeTab === 'python' && <PythonConnectorsView />}
-
         </main>
       </div>
 
-      {/* AI Tutor Modal */}
       <AiTutorModal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
         contextMessage={aiContext}
       />
-
     </div>
   );
 }
