@@ -3,9 +3,9 @@ services:
     name: dbmaster-studio
     runtime: node
     plan: free
-    buildCommand: npm run build
-    startCommand: node src/dist/server.cjs
-    publishDir: src/dist
+    buildCommand: npm install; npm run build
+    startCommand: node dist/server.cjs
+    publishDir: dist
     envVars:
       - key: NODE_ENV
         value: production

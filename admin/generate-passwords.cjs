@@ -12,7 +12,7 @@
 
 const http = require('http');
 
-const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = 'https://dbmaster-studio.onrender.com';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-change-in-production';
 
 function makeRequest(method, path, data = null, adminKey = ADMIN_KEY) {
