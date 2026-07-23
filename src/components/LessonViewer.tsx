@@ -84,23 +84,43 @@ export const LessonViewer: React.FC<LessonViewerProps> = ({
       {/* Main Lesson Theory Markdown */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-200 text-sm leading-relaxed space-y-4 shadow-sm">
         <div className="prose prose-invert max-w-none space-y-4">
-          {topic.theoryMarkdown.split('\n\n').map((paragraph, idx) => {
-            if (paragraph.startsWith('### ')) {
-              return <h3 key={idx} className="text-lg font-bold text-white border-b border-slate-800 pb-2 mt-4">{paragraph.replace('### ', '')}</h3>;
+          {topic.theoryMarkdown.split('\n').map((line, idx) => {
+            const trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith('### ')) {
+              return <h3 key={idx} className="text-lg font-bold text-white border-b border-slate-800 pb-2 mt-4 mb-3">{trimmedLine.replace('### ', '')}</h3>;
             }
-            if (paragraph.startsWith('#### ')) {
-              return <h4 key={idx} className="text-sm font-bold text-blue-300 mt-3">{paragraph.replace('#### ', '')}</h4>;
+            if (trimmedLine.startsWith('#### ')) {
+              return <h4 key={idx} className="text-sm font-bold text-blue-300 mt-4 mb-2">{trimmedLine.replace('#### ', '')}</h4>;
             }
-            if (paragraph.startsWith('- ')) {
+            if (trimmedLine.startsWith('- ')) {
               return (
-                <ul key={idx} className="list-disc list-inside space-y-1.5 pl-2 text-slate-300 text-xs sm:text-sm">
-                  {paragraph.split('\n').map((item, i) => (
-                    <li key={i}>{item.replace('- ', '')}</li>
-                  ))}
-                </ul>
+                <li key={idx} className="list-disc list-inside space-y-1 pl-2 text-slate-300 text-xs sm:text-sm leading-relaxed ml-4">
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: trimmedLine.replace('- ', '').replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>') 
+                  }} />
+                </li>
               );
             }
-            return <p key={idx} className="text-slate-300 text-xs sm:text-sm">{paragraph}</p>;
+            if (/^\d+\.\s/.test(trimmedLine)) {
+              return (
+                <li key={idx} className="list-decimal list-inside space-y-1 pl-2 text-slate-300 text-xs sm:text-sm leading-relaxed ml-4">
+                  <span dangerouslySetInnerHTML={{ 
+                    __html: trimmedLine.replace(/^\d+\.\s/, '').replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>') 
+                  }} />
+                </li>
+              );
+            }
+            if (trimmedLine === '') {
+              return <div key={idx} className="h-2" />;
+            }
+            return (
+              <p key={idx} className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                <span dangerouslySetInnerHTML={{ 
+                  __html: trimmedLine.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>') 
+                }} />
+              </p>
+            );
           })}
         </div>
       </div>
