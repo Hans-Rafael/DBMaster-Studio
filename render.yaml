@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free
     buildCommand: npm run build
-    startCommand: node dist/server.cjs
-    publishDir: dist
+    startCommand: node src/dist/server.cjs
+    publishDir: src/dist
     envVars:
       - key: NODE_ENV
         value: production
