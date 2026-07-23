@@ -11,6 +11,34 @@ DBMaster Studio es una aplicación web completa diseñada para el aprendizaje pr
 - **Tutor IA**: Asistente pedagógico impulsado por Gemini AI para resolver dudas
 - **Evaluación automática**: Quizzes y ejercicios con corrección por IA
 - **Progreso personalizado**: Seguimiento del aprendizaje del usuario
+- **Sistema de autenticación**: Contraseñas temporales para acceso controlado
+
+## 🔐 Sistema de Autenticación
+
+DBMaster Studio utiliza un sistema de contraseñas temporales para controlar el acceso a la plataforma:
+
+- **Contraseñas temporales**: Válidas por 7 días
+- **Formato fácil de recordar**: `palabra1 + palabra2 + número` (ej: `nubesol23`)
+- **Uso único**: Cada contraseña puede usarse una sola vez
+- **Administración simple**: Comandos npm para gestión
+
+### Comandos de Administración
+
+```bash
+# Generar una nueva contraseña temporal
+npm run admin:generate
+
+# Listar todas las contraseñas activas
+npm run admin:list
+
+# Eliminar una contraseña específica
+npm run admin:delete [id]
+
+# Mostrar ayuda
+npm run admin:help
+```
+
+Para más detalles, consulta [ADMIN_GUIDE.md](ADMIN_GUIDE.md).
 
 ## 📚 Contenido Educativo
 
@@ -135,13 +163,39 @@ DBMaster-Studio-main/
 ## 🔧 Scripts Disponibles
 
 ```bash
-npm run dev          # Inicia servidor de desarrollo
-npm run build        # Construye para producción
-npm start            # Ejecuta versión de producción
-npm run preview      # Previsualiza build de producción
-npm run lint         # Verifica tipos de TypeScript
-npm run clean        # Limpia archivos de build
+npm run dev              # Inicia servidor de desarrollo
+npm run build            # Construye para producción
+npm start                # Ejecuta versión de producción
+npm run preview          # Previsualiza build de producción
+npm run lint             # Verifica tipos de TypeScript
+npm run clean            # Limpia archivos de build
+
+# Comandos de administración
+npm run admin:generate   # Generar nueva contraseña temporal
+npm run admin:list       # Listar contraseñas activas
+npm run admin:delete     # Eliminar contraseña específica
+npm run admin:help       # Mostrar ayuda de administración
 ```
+
+## 🌐 Despliegue en Producción
+
+La aplicación está desplegada en **Render**: https://dbmaster-studio.onrender.com
+
+### Configuración de Despliegue
+
+- **Runtime**: Node.js
+- **Build Command**: `npm install; npm run build`
+- **Start Command**: `npm start`
+- **Root Directory**: `src`
+- **Publish Directory**: `dist`
+
+### Variables de Entorno
+
+- `NODE_ENV`: `production`
+- `PORT`: `3000`
+- `JWT_SECRET`: Clave secreta para tokens
+- `ADMIN_KEY`: Clave de administrador
+- `GEMINI_API_KEY`: API key de Google Gemini (opcional)
 
 ## 🔒 Seguridad
 
