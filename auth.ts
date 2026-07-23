@@ -15,14 +15,34 @@ const tempPasswords: Map<string, TempPassword> = new Map();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const PASSWORD_EXPIRY_DAYS = 7;
 
-// Generar una contraseña temporal
+// Generar una contraseña temporal fácil de recordar
 export function generateTempPassword(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
-  for (let i = 0; i < 12; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
+  // Palabras comunes y fáciles de recordar
+  const words = [
+    'nube', 'sol', 'luna', 'mar', 'rio', 'monte', 'flor', 'arbol',
+    'azul', 'rojo', 'verde', 'negro', 'blanco', 'dorado', 'plata',
+    'estrella', 'fuego', 'tierra', 'aire', 'luz', 'sombra',
+    'tigr3', 'leon', 'lobo', 'aguila', 'delfin', 'ballena',
+    'gato', 'perro', 'caballo', 'pajaro', 'mariposa',
+    'futbol', 'basket', 'tenis', 'golf', 'natacion',
+    'libro', 'lapiz', 'papel', 'mesa', 'silla', 'casa',
+    'camino', 'puente', 'parque', 'ciudad', 'campo',
+    'musica', 'danza', 'arte', 'pintura', 'foto',
+    'cafe', 'te', 'leche', 'pan', 'queso', 'fruta',
+    'manzana', 'naranja', 'limon', 'uva', 'mango',
+    'ocean0', 'cielo', 'playa', 'arena', 'montana',
+    'corazon', 'mente', 'alma', 'vida', 'sueño'
+  ];
+  
+  // Seleccionar 2 palabras aleatorias
+  const word1 = words[Math.floor(Math.random() * words.length)];
+  const word2 = words[Math.floor(Math.random() * words.length)];
+  
+  // Agregar un número aleatorio de 2 dígitos
+  const number = Math.floor(Math.random() * 90) + 10;
+  
+  // Formar contraseña: palabra1 + palabra2 + número
+  return `${word1}${word2}${number}`;
 }
 
 // Crear y almacenar una contraseña temporal
