@@ -1,0 +1,8 @@
+{
+  "name": "DBMaster Studio",
+  "description": "Plataforma interactiva de aprendizaje de PostgreSQL, MongoDB y GraphQL con teoría, playground de consultas, mini-exámenes y ejercicios prácticos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
