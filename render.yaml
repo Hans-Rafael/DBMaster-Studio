@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     buildCommand: npm install; npm run build
-    startCommand: node dist/server.cjs
+    startCommand: npm run start
     publishDir: dist
     envVars:
       - key: NODE_ENV
@@ -14,6 +14,12 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: ADMIN_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: RECOVERY_EMAIL
         sync: false
       - key: GEMINI_API_KEY
         sync: false

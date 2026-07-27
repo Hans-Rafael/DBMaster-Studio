@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
@@ -53,7 +54,7 @@ console.log('🔑 JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '�
 console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-change-in-production';
 
 app.use(express.json());
