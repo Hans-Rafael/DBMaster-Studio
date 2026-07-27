@@ -49,6 +49,12 @@ function getTransporter(): nodemailer.Transporter | null {
     defaults: {
       from: config.from,
     },
+    // Opciones adicionales para resolver problemas de conectividad
+    tls: {
+      rejectUnauthorized: false, // Desactivar verificación estricta SSL
+    },
+    // Opciones de familia de direcciones para forzar IPv4
+    family: 4, // 4 = IPv4, 6 = IPv6, 0 = both
   });
 
   return transporter;

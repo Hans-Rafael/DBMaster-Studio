@@ -32,13 +32,17 @@ import { verifyEmailConnection } from "./email-service";
 
 dotenv.config();
 
-// Verificar conexión SMTP al inicio (best practice)
+// Verificar conexión SMTP al inicio (no crítico para el funcionamiento)
 verifyEmailConnection().then(success => {
   if (success) {
     console.log('📧 Sistema de correo SMTP configurado y verificado');
   } else {
-    console.log('⚠️  Sistema de correo no configurado, funcionando en modo desarrollo');
+    console.log('⚠️  Sistema de correo no configurado o con problemas de conectividad');
+    console.log('⚠️  El resto del sistema funcionará normalmente sin correo');
   }
+}).catch(error => {
+  console.log('⚠️  Error al verificar conexión SMTP:', error.message);
+  console.log('⚠️  El resto del sistema funcionará normalmente sin correo');
 });
 
 // Verificar variables de entorno críticas
