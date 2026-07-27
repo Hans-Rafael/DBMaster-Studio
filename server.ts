@@ -602,32 +602,16 @@ Proporciona:
 
 // Vite / Production Static Handling
 async function setupServer() {
-  const isProduction = process.env.NODE_ENV === "production";
-  const distPath = path.join(process.cwd(), "dist");
-  
   console.log('🔧 Configuración del servidor:');
-  console.log('📦 Entorno:', isProduction ? 'production' : 'development');
-  console.log('📁 Dist path:', distPath);
-  console.log('📁 Dist existe:', fs.existsSync(distPath));
+  console.log('📦 Entorno:', process.env.NODE_ENV || 'development');
+  console.log('🛠️  Usando Vite dev server (tsx, sin bundling de servidor)');
   
-  if (isProduction && fs.existsSync(distPath)) {
-    console.log('🚀 Sirviendo archivos estáticos desde dist/');
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  } else {
-    console.log('🛠️  Usando Vite dev server');
-    if (isProduction && !fs.existsSync(distPath)) {
-      console.warn('⚠️  NODE_ENV=production pero dist/ no existe, usando Vite dev server');
-    }
-    
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  }
+  // Usar siempre Vite dev server ya que usamos tsx directamente
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`✅ Servidor DBMaster Studio iniciado exitosamente`);
