@@ -9,12 +9,17 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 // Asegurar que el directorio exista
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log('📁 Directorio admin-data creado');
 }
 
 // Credenciales por defecto
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@dbmaster.studio';
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin2024Secure';
 const DEFAULT_RECOVERY_EMAIL = process.env.RECOVERY_EMAIL || 'hansvekoni@gmail.com';
+
+console.log('🔧 Inicializando administrador...');
+console.log('📧 Email:', DEFAULT_ADMIN_EMAIL);
+console.log('🔧 Entorno:', process.env.NODE_ENV || 'development');
 
 function initializeAdmin() {
   console.log('🔧 Inicializando administrador...');
@@ -23,8 +28,9 @@ function initializeAdmin() {
   if (fs.existsSync(ADMINS_FILE)) {
     try {
       admins = JSON.parse(fs.readFileSync(ADMINS_FILE, 'utf-8'));
+      console.log('📋 Administradores existentes:', admins.length);
     } catch (error) {
-      console.log('⚠️  Error al leer archivo de admins, creando nuevo...');
+      console.log('⚠️  Error al leer archivo de admins, creando nuevo...', error.message);
     }
   }
   
@@ -33,10 +39,12 @@ function initializeAdmin() {
   
   if (existingAdmin) {
     console.log('✅ Administrador ya existe:', DEFAULT_ADMIN_EMAIL);
+    console.log('🆔 ID:', existingAdmin.id);
     return;
   }
   
   // Crear nuevo administrador
+  console.log('🔐 Creando nuevo administrador...');
   bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10, (err, hash) => {
     if (err) {
       console.error('❌ Error al crear hash:', err);
@@ -59,6 +67,8 @@ function initializeAdmin() {
     console.log('📧 Email:', DEFAULT_ADMIN_EMAIL);
     console.log('🔐 Contraseña:', DEFAULT_ADMIN_PASSWORD);
     console.log('📧 Recuperación:', DEFAULT_RECOVERY_EMAIL);
+    console.log('🆔 ID:', newAdmin.id);
+    console.log('🔐 Hash:', hash.substring(0, 20) + '...');
   });
 }
 
@@ -75,7 +85,11 @@ function initializeUsers() {
 }
 
 // Ejecutar inicialización
-initializeAdmin();
-initializeUsers();
-
-console.log('🚀 Sistema inicializado correctamente');
+try {
+  initializeAdmin();
+  initializeUsers();
+  console.log('🚀 Sistema inicializado correctamente');
+} catch (error) {
+  console.error('❌ Error en inicialización:', error);
+  process.exit(1);
+}

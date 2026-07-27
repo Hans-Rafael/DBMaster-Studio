@@ -104,6 +104,7 @@ export async function createTempPassword(): Promise<{ id: string; password: stri
 
 // Verificar una contraseña temporal
 export async function verifyTempPassword(password: string): Promise<string | null> {
+  console.log('🔍 Verificando contraseña:', password ? '***' : 'vacía');
   cleanExpiredPasswords();
 
   // Primero intentar contraseñas temporales independientes
@@ -114,6 +115,7 @@ export async function verifyTempPassword(password: string): Promise<string | nul
 
     const isValid = await bcrypt.compare(password, tempPassword.passwordHash);
     if (isValid) {
+      console.log('✅ Contraseña temporal válida');
       // Marcar como usada
       tempPassword.used = true;
       tempPasswords.set(id, tempPassword);
@@ -131,19 +133,26 @@ export async function verifyTempPassword(password: string): Promise<string | nul
 
   // Verificar contra usuarios creados
   const users = readData<User[]>(USERS_FILE, []);
+  console.log('👥 Usuarios encontrados:', users.length);
   const now = new Date();
 
   for (const user of users) {
+    console.log('🔍 Verificando usuario:', user.username);
     // Verificar que el usuario esté activo y su sesión no haya expirado
-    if (user.role === 'banned') continue;
+    if (user.role === 'banned') {
+      console.log('⚠️  Usuario baneado:', user.username);
+      continue;
+    }
     
     if (user.session_expires_at && new Date(user.session_expires_at) < now) {
+      console.log('⚠️  Sesión expirada:', user.username);
       continue;
     }
 
     // Verificar contra la contraseña actual del usuario
     const isValid = await bcrypt.compare(password, user.password_hash);
     if (isValid) {
+      console.log('✅ Contraseña de usuario válida:', user.username);
       // Actualizar last_login
       user.last_login = new Date().toISOString();
       
@@ -171,13 +180,19 @@ export async function verifyTempPassword(password: string): Promise<string | nul
   }
 
   // Verificar contra administrador (para que el admin pueda usar su contraseña normal en login normal)
+  console.log('🔍 Verificando administrador...');
   try {
     const admins = readData<any[]>(path.join(DATA_DIR, 'admins.json'), []);
+    console.log('👤 Administradores encontrados:', admins.length);
     const admin = admins.find(a => a.email === 'admin@dbmaster.studio');
     
     if (admin) {
+      console.log('👤 Administrador encontrado:', admin.email);
       const isValid = await bcrypt.compare(password, admin.password_hash);
+      console.log('🔐 ¿Contraseña válida para admin?', isValid);
+      
       if (isValid) {
+        console.log('✅ Contraseña de administrador válida');
         // Actualizar last_login
         admin.last_login = new Date().toISOString();
         const adminIndex = admins.findIndex(a => a.id === admin.id);
@@ -202,11 +217,14 @@ export async function verifyTempPassword(password: string): Promise<string | nul
         );
         return token;
       }
+    } else {
+      console.log('⚠️  Administrador no encontrado');
     }
   } catch (error) {
-    console.error('Error al verificar admin en login normal:', error);
+    console.error('❌ Error al verificar admin en login normal:', error);
   }
 
+  console.log('❌ Contraseña inválida');
   return null;
 }
 
