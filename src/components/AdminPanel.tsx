@@ -12,12 +12,18 @@ import {
   Edit,
   Loader2,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  Settings,
+  Lock,
+  Mail
 } from 'lucide-react';
+import { SettingsTab } from './AdminPanelSettings';
 
 interface User {
   id: string;
   username: string;
+  password: string; // Contraseña en texto plano para mostrar en panel
+  password_hash: string;
   email: string | null;
   role: 'student' | 'restricted' | 'banned';
   session_expires_at: string | null;
@@ -25,32 +31,48 @@ interface User {
   last_login: string | null;
 }
 
-interface TempPassword {
-  id: string;
-  password_hash: string;
-  user_id: string | null;
-  expires_at: string;
-  created_at: string;
-  used: boolean;
-}
-
 export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'users' | 'passwords'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'settings'>('users');
   const [users, setUsers] = useState<User[]>([]);
-  const [tempPasswords, setTempPasswords] = useState<TempPassword[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Admin profile state
+  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newRecoveryEmail, setNewRecoveryEmail] = useState('');
 
   // Form states
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  // Cargar perfil de administrador
+  useEffect(() => {
+    loadAdminProfile();
+  }, []);
+
+  const loadAdminProfile = async () => {
+    try {
+      const response = await fetch('/api/admin/profile');
+      const data = await response.json();
+      if (response.ok) {
+        setAdminProfile(data.admin);
+        setNewRecoveryEmail(data.admin.recovery_email || '');
+      }
+    } catch (err) {
+      console.error('Error al cargar perfil:', err);
+    }
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -92,7 +114,7 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           username: newUsername, 
-          password: newPassword, 
+          password: newUserPassword, 
           email: newEmail || null 
         }),
       });
@@ -102,7 +124,7 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
       if (response.ok) {
         setSuccess('Usuario creado exitosamente');
         setNewUsername('');
-        setNewPassword('');
+        setNewUserPassword('');
         setNewEmail('');
         setShowCreateUser(false);
         loadData();
@@ -171,21 +193,17 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
     }
   };
 
-  const handleGeneratePassword = async (userId?: string) => {
+  const handleGeneratePassword = async (userId: string) => {
     try {
-      const response = await fetch('/api/admin/temp-passwords', {
+      const response = await fetch(`/api/admin/users/${userId}/generate-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
         setSuccess(`Contraseña generada: ${data.password}`);
-        if (activeTab === 'passwords') {
-          loadData();
-        }
+        loadData(); // Recargar usuarios para mostrar la nueva contraseña
       } else {
         setError('Error al generar contraseña');
       }
@@ -194,17 +212,60 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
     }
   };
 
-  const handleDeletePassword = async (passwordId: string) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (newPassword !== confirmPassword) {
+      setError('Las contraseñas nuevas no coinciden');
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/admin/temp-passwords/${passwordId}`, {
-        method: 'DELETE',
+      const response = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          currentPassword, 
+          newPassword 
+        }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        setSuccess('Contraseña eliminada exitosamente');
-        loadData();
+        setSuccess('Contraseña cambiada exitosamente');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowChangePassword(false);
       } else {
-        setError('Error al eliminar contraseña');
+        setError(data.error || 'Error al cambiar contraseña');
+      }
+    } catch (err) {
+      setError('Error de conexión');
+    }
+  };
+
+  const handleUpdateRecoveryEmail = async () => {
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch('/api/admin/recovery-email', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recoveryEmail: newRecoveryEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess('Email de recuperación actualizado');
+        loadAdminProfile();
+      } else {
+        setError(data.error || 'Error al actualizar email');
       }
     } catch (err) {
       setError('Error de conexión');
@@ -292,15 +353,15 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
             <span>Usuarios</span>
           </button>
           <button
-            onClick={() => setActiveTab('passwords')}
+            onClick={() => setActiveTab('settings')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              activeTab === 'passwords' 
+              activeTab === 'settings' 
                 ? 'bg-indigo-600 text-white' 
                 : 'bg-slate-800 text-slate-400 hover:text-white'
             }`}
           >
-            <Key className="w-4 h-4" />
-            <span>Contraseñas Temporales</span>
+            <Settings className="w-4 h-4" />
+            <span>Configuración</span>
           </button>
         </div>
 
@@ -316,8 +377,8 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
             setShowCreateUser={setShowCreateUser}
             newUsername={newUsername}
             setNewUsername={setNewUsername}
-            newPassword={newPassword}
-            setNewPassword={setNewPassword}
+            newPassword={newUserPassword}
+            setNewPassword={setNewUserPassword}
             newEmail={newEmail}
             setNewEmail={setNewEmail}
             handleCreateUser={handleCreateUser}
@@ -329,11 +390,20 @@ export const AdminPanel: React.FC<{ onLogout: () => void }> = ({ onLogout }) => 
             formatDate={formatDate}
           />
         ) : (
-          <PasswordsTab
-            tempPasswords={tempPasswords}
-            handleGeneratePassword={handleGeneratePassword}
-            handleDeletePassword={handleDeletePassword}
-            formatDate={formatDate}
+          <SettingsTab
+            adminProfile={adminProfile}
+            showChangePassword={showChangePassword}
+            setShowChangePassword={setShowChangePassword}
+            currentPassword={currentPassword}
+            setCurrentPassword={setCurrentPassword}
+            newPassword={newPassword}
+            setNewPassword={setNewPassword}
+            confirmPassword={confirmPassword}
+            setConfirmPassword={setConfirmPassword}
+            newRecoveryEmail={newRecoveryEmail}
+            setNewRecoveryEmail={setNewRecoveryEmail}
+            handleChangePassword={handleChangePassword}
+            handleUpdateRecoveryEmail={handleUpdateRecoveryEmail}
           />
         )}
       </div>
@@ -356,7 +426,7 @@ const UsersTab: React.FC<{
   handleDeleteUser: (id: string) => void;
   handleExtendSession: (id: string, days?: number) => void;
   handleUpdateRole: (id: string, role: 'student' | 'restricted' | 'banned') => void;
-  handleGeneratePassword: (userId?: string) => void;
+  handleGeneratePassword: (userId: string) => void;
   getRoleBadge: (role: string) => JSX.Element;
   formatDate: (date: string | null) => string;
 }> = ({
@@ -365,8 +435,8 @@ const UsersTab: React.FC<{
   setShowCreateUser,
   newUsername,
   setNewUsername,
-  newPassword,
-  setNewPassword,
+  newPassword: newUserPassword,
+  setNewPassword: setNewUserPassword,
   newEmail,
   setNewEmail,
   handleCreateUser,
@@ -399,8 +469,8 @@ const UsersTab: React.FC<{
               <label className="block text-sm font-medium text-slate-300 mb-2">Contraseña</label>
               <input
                 type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="••••••••"
                 required
@@ -453,8 +523,10 @@ const UsersTab: React.FC<{
         <table className="w-full">
           <thead className="bg-slate-800">
             <tr>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">ID</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Usuario</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Email</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Contraseña</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Rol</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Sesión Expira</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Creado</th>
@@ -464,15 +536,19 @@ const UsersTab: React.FC<{
           <tbody className="divide-y divide-slate-700">
             {users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   No hay usuarios registrados
                 </td>
               </tr>
             ) : (
               users.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-800/50">
+                  <td className="px-4 py-3 text-white font-mono text-xs">{user.id.substring(0, 8)}...</td>
                   <td className="px-4 py-3 text-white">{user.username}</td>
                   <td className="px-4 py-3 text-slate-400">{user.email || 'N/A'}</td>
+                  <td className="px-4 py-3 text-white font-mono text-sm bg-slate-800/50 rounded px-2 py-1">
+                    {user.password}
+                  </td>
                   <td className="px-4 py-3">{getRoleBadge(user.role)}</td>
                   <td className="px-4 py-3 text-slate-400">{formatDate(user.session_expires_at)}</td>
                   <td className="px-4 py-3 text-slate-400">{formatDate(user.created_at)}</td>
@@ -509,82 +585,6 @@ const UsersTab: React.FC<{
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-);
-
-// Passwords Tab Component
-const PasswordsTab: React.FC<{
-  tempPasswords: TempPassword[];
-  handleGeneratePassword: (userId?: string) => void;
-  handleDeletePassword: (id: string) => void;
-  formatDate: (date: string | null) => string;
-}> = ({ tempPasswords, handleGeneratePassword, handleDeletePassword, formatDate }) => (
-  <div className="space-y-6">
-    <div className="bg-slate-900/50 border border-slate-700 rounded-xl overflow-hidden">
-      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">Contraseñas Temporales Activas</h3>
-        <button
-          onClick={() => handleGeneratePassword()}
-          className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Generar Contraseña</span>
-        </button>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">ID</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Usuario ID</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Creada</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Expira</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Estado</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-300">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700">
-            {tempPasswords.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  No hay contraseñas temporales activas
-                </td>
-              </tr>
-            ) : (
-              tempPasswords.map((pwd) => (
-                <tr key={pwd.id} className="hover:bg-slate-800/50">
-                  <td className="px-4 py-3 text-white font-mono text-sm">{pwd.id}</td>
-                  <td className="px-4 py-3 text-slate-400 font-mono text-sm">{pwd.user_id || 'N/A'}</td>
-                  <td className="px-4 py-3 text-slate-400">{formatDate(pwd.created_at)}</td>
-                  <td className="px-4 py-3 text-slate-400">{formatDate(pwd.expires_at)}</td>
-                  <td className="px-4 py-3">
-                    {pwd.used ? (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                        Usada
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
-                        Activa
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleDeletePassword(pwd.id)}
-                      className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                      title="Eliminar contraseña"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </td>
                 </tr>
               ))

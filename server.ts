@@ -13,6 +13,7 @@ import {
 } from "./auth";
 import {
   adminLogin,
+  adminLoginWithTempPassword,
   verifyAdminToken,
   createAdmin,
   createUser,
@@ -21,12 +22,24 @@ import {
   extendUserSession,
   updateUserRole,
   deleteUser,
-  createTempPasswordInDb,
-  getActivePasswordsFromDb,
-  deletePasswordFromDb
+  generateUserPassword,
+  changeAdminPassword,
+  recoverAdminPassword,
+  getAdminInfo,
+  updateAdminRecoveryEmail
 } from "./admin-service";
+import { verifyEmailConnection } from "./email-service";
 
 dotenv.config();
+
+// Verificar conexión SMTP al inicio (best practice)
+verifyEmailConnection().then(success => {
+  if (success) {
+    console.log('📧 Sistema de correo SMTP configurado y verificado');
+  } else {
+    console.log('⚠️  Sistema de correo no configurado, funcionando en modo desarrollo');
+  }
+});
 
 const app = express();
 const PORT = 3000;
@@ -95,6 +108,26 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Contraseña inválida o expirada' });
     }
 
+    // Verificar si el token pertenece a un administrador
+    const decoded = verifyToken(token);
+    
+    if (decoded && decoded.isAdmin) {
+      // Si es administrador, devolver información especial para redirigir al panel
+      res.cookie('admin_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+      });
+      
+      return res.json({ 
+        success: true, 
+        isAdmin: true,
+        message: 'Login exitoso como administrador',
+        redirect: '/admin'
+      });
+    }
+
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -153,7 +186,13 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
-    const result = await adminLogin(email, password);
+    // Intentar login con contraseña normal primero
+    let result = await adminLogin(email, password);
+    
+    // Si falla, intentar con contraseña temporal
+    if (!result) {
+      result = await adminLoginWithTempPassword(email, password);
+    }
     
     if (!result) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -289,43 +328,115 @@ app.delete('/api/admin/users/:id', requireAdminAuth, async (req, res) => {
   }
 });
 
-// ===== GESTIÓN DE CONTRASEÑAS TEMPORALES (Supabase) =====
+// ===== GESTIÓN DE CONTRASEÑAS DE USUARIOS =====
 
-// Generar contraseña temporal (Supabase)
-app.post('/api/admin/temp-passwords', requireAdminAuth, async (req, res) => {
+// Generar nueva contraseña para usuario
+app.post('/api/admin/users/:id/generate-password', requireAdminAuth, async (req, res) => {
   try {
-    const { userId } = req.body;
-    const result = await createTempPasswordInDb(userId);
+    const result = await generateUserPassword(req.params.id);
     
     if (!result) {
-      return res.status(500).json({ error: 'Error al generar contraseña' });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    res.json({
-      id: result.id,
-      password: result.password,
-      expiresAt: result.expiresAt
-    });
+    res.json({ success: true, password: result.password });
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
 
-// Obtener contraseñas activas (Supabase)
-app.get('/api/admin/temp-passwords', requireAdminAuth, async (req, res) => {
+// ===== GESTIÓN DE CUENTA DE ADMINISTRADOR =====
+
+// Obtener información del administrador actual
+app.get('/api/admin/profile', requireAdminAuth, async (req, res) => {
   try {
-    const passwords = await getActivePasswordsFromDb();
-    res.json({ passwords });
+    const admin = await getAdminInfo(req.admin.adminId);
+    if (!admin) {
+      return res.status(404).json({ error: 'Administrador no encontrado' });
+    }
+    
+    // No enviar el hash de la contraseña
+    const { password_hash, ...adminSafe } = admin;
+    res.json({ admin: adminSafe });
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
 
-// Eliminar contraseña temporal (Supabase)
-app.delete('/api/admin/temp-passwords/:id', requireAdminAuth, async (req, res) => {
+// Cambiar contraseña de administrador
+app.post('/api/admin/change-password', requireAdminAuth, async (req, res) => {
   try {
-    const deleted = await deletePasswordFromDb(req.params.id);
-    res.json({ success: deleted });
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Contraseña actual y nueva requeridas' });
+    }
+
+    const success = await changeAdminPassword(req.admin.adminId, currentPassword, newPassword);
+    
+    if (!success) {
+      return res.status(400).json({ error: 'Contraseña actual incorrecta' });
+    }
+
+    res.json({ success: true, message: 'Contraseña cambiada exitosamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Actualizar email de recuperación
+app.put('/api/admin/recovery-email', requireAdminAuth, async (req, res) => {
+  try {
+    const { recoveryEmail } = req.body;
+    
+    if (!recoveryEmail) {
+      return res.status(400).json({ error: 'Email de recuperación requerido' });
+    }
+
+    const success = await updateAdminRecoveryEmail(req.admin.adminId, recoveryEmail);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Administrador no encontrado' });
+    }
+
+    res.json({ success: true, message: 'Email de recuperación actualizado' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Recuperar contraseña (público, sin autenticación)
+app.post('/api/admin/recover-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email requerido' });
+    }
+
+    const result = await recoverAdminPassword(email);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Email no encontrado' });
+    }
+
+    // Si el correo se envió exitosamente, no mostramos la contraseña
+    if (result.emailSent) {
+      res.json({ 
+        success: true, 
+        message: 'Contraseña temporal enviada a tu correo electrónico',
+        emailSent: true
+      });
+    } else {
+      // Si el correo no se pudo enviar, mostramos la contraseña para desarrollo
+      res.json({ 
+        success: true, 
+        message: 'Contraseña temporal generada (correo no configurado)',
+        tempPassword: result.tempPassword,
+        expiresAt: result.expiresAt,
+        emailSent: false
+      });
+    }
   } catch (error) {
     res.status(500).json({ error: 'Error en el servidor' });
   }

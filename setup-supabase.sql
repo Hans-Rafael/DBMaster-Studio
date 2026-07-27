@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS admins (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  recovery_email TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_login TIMESTAMP WITH TIME ZONE
 );
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS admins (
 CREATE TABLE IF NOT EXISTS users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL, -- Contraseña en texto plano para mostrar en panel (cuidado con seguridad)
   password_hash TEXT NOT NULL,
   email TEXT,
   role TEXT DEFAULT 'student' CHECK (role IN ('student', 'restricted', 'banned')),

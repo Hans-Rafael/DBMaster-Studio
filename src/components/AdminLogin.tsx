@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, AlertCircle, Loader2, Shield } from 'lucide-react';
+import { Lock, AlertCircle, Loader2, Shield, Mail } from 'lucide-react';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -11,6 +11,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoverySuccess, setRecoverySuccess] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,15 +22,19 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
     setIsLoading(true);
 
     try {
+      console.log('Intentando login admin con:', { email, password: '***' });
+      
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include' // Importante para cookies
       });
 
       const data = await response.json();
+      console.log('Respuesta del servidor:', data);
 
       if (response.ok) {
         onLoginSuccess();
@@ -34,9 +42,44 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
         setError(data.error || 'Error al iniciar sesión');
       }
     } catch (err) {
+      console.error('Error en login:', err);
       setError('Error de conexión con el servidor');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoverySuccess('');
+    setRecoveryLoading(true);
+
+    try {
+      const response = await fetch('/api/admin/recover-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: recoveryEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.emailSent) {
+          setRecoverySuccess('Contraseña temporal enviada a tu correo electrónico. Revisa tu bandeja de entrada.');
+        } else {
+          setRecoverySuccess(`Contraseña temporal generada: ${data.tempPassword} (expira: ${new Date(data.expiresAt).toLocaleString('es-ES')})`);
+        }
+        setShowRecovery(false);
+        setRecoveryEmail('');
+      } else {
+        setError(data.error || 'Error al recuperar contraseña');
+      }
+    } catch (err) {
+      setError('Error de conexión con el servidor');
+    } finally {
+      setRecoveryLoading(false);
     }
   };
 
@@ -116,7 +159,58 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
             >
               ← Volver al login de estudiantes
             </button>
+            
+            <button
+              onClick={() => setShowRecovery(!showRecovery)}
+              className="w-full py-2 text-indigo-400 hover:text-indigo-300 text-sm transition-colors mt-2"
+            >
+              {showRecovery ? '← Cancelar recuperación' : '¿Olvidaste tu contraseña?'}
+            </button>
           </div>
+
+          {/* Recovery Form */}
+          {showRecovery && (
+            <div className="mt-4 p-4 bg-slate-800/50 border border-slate-700 rounded-lg">
+              <h4 className="text-md font-semibold text-white mb-4 flex items-center space-x-2">
+                <Mail className="w-4 h-4" />
+                <span>Recuperar Contraseña</span>
+              </h4>
+              <form onSubmit={handleRecovery} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Email de Administrador
+                  </label>
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="admin@dbmaster.studio"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={recoveryLoading || !recoveryEmail}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all flex items-center justify-center space-x-2"
+                >
+                  {recoveryLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generando...</span>
+                    </>
+                  ) : (
+                    <span>Enviar Contraseña Temporal</span>
+                  )}
+                </button>
+              </form>
+              {recoverySuccess && (
+                <div className="mt-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg text-green-400 text-sm">
+                  {recoverySuccess}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

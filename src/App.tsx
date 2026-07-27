@@ -37,6 +37,15 @@ export function App() {
         const adminResponse = await fetch('/api/admin/check');
         const adminData = await adminResponse.json();
         setIsAdminAuthenticated(adminData.authenticated);
+        
+        // Verificar si estamos en la ruta /admin
+        if (window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin')) {
+          if (adminData.authenticated) {
+            setCurrentView('admin-panel');
+          } else {
+            setCurrentView('admin-login');
+          }
+        }
       } catch (error) {
         setIsAuthenticated(false);
         setIsAdminAuthenticated(false);

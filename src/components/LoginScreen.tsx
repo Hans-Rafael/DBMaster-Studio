@@ -28,7 +28,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onAdmi
       const data = await response.json();
 
       if (response.ok) {
-        onLoginSuccess();
+        // Si es administrador, redirigir al panel de administración
+        if (data.isAdmin) {
+          window.location.href = '/admin';
+        } else {
+          onLoginSuccess();
+        }
       } else {
         setError(data.error || 'Error al iniciar sesión');
       }
@@ -101,9 +106,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onAdmi
             {onAdminLogin && (
               <button
                 onClick={onAdminLogin}
-                className="text-xs text-slate-400 hover:text-indigo-400 transition-colors"
+                className="w-full py-2 px-4 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 rounded-lg text-sm font-medium transition-all"
               >
-                ¿Eres administrador? Ingresa aquí
+                🛡️ Acceso Administrador
               </button>
             )}
           </div>
