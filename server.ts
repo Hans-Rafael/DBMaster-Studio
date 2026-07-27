@@ -41,6 +41,13 @@ verifyEmailConnection().then(success => {
   }
 });
 
+// Verificar variables de entorno críticas
+console.log('🔧 Verificando variables de entorno...');
+console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL ? '✅ Configurado' : '❌ No configurado');
+console.log('🔐 ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD ? '✅ Configurado' : '❌ No configurado');
+console.log('🔑 JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '❌ No configurado');
+console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
+
 const app = express();
 const PORT = 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-change-in-production';
@@ -93,10 +100,25 @@ const requireAdminAuth = (req: any, res: any, next: any) => {
   next();
 };
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    adminConfigured: !!process.env.ADMIN_EMAIL && !!process.env.ADMIN_PASSWORD,
+    jwtConfigured: !!process.env.JWT_SECRET,
+    emailConfigured: !!process.env.EMAIL_USER && !!process.env.EMAIL_PASSWORD
+  };
+  res.json(health);
+});
+
 // Rutas de autenticación
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { password } = req.body;
+    
+    console.log('🔍 Login normal recibido:', password ? '***' : 'vacía');
     
     if (!password) {
       return res.status(400).json({ error: 'Se requiere contraseña' });
@@ -105,8 +127,11 @@ app.post('/api/auth/login', async (req, res) => {
     const token = await verifyTempPassword(password);
     
     if (!token) {
+      console.log('❌ Login normal falló: contraseña inválida');
       return res.status(401).json({ error: 'Contraseña inválida o expirada' });
     }
+
+    console.log('✅ Login normal exitoso');
 
     // Verificar si el token pertenece a un administrador
     const decoded = verifyToken(token);
