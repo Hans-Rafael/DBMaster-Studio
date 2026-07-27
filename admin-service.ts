@@ -77,18 +77,54 @@ function writeData<T>(filePath: string, data: T): void {
 // Login de administrador
 export async function adminLogin(email: string, password: string): Promise<{ token: string; admin: Admin } | null> {
   try {
+    // ===== PRIMERO: Verificar por variables de entorno (producción) =====
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@dbmaster.studio';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin2024Secure';
+    const recoveryEmail = process.env.RECOVERY_EMAIL || 'hansvekoni@gmail.com';
+    
+    console.log('🔧 Login admin verificando variables de entorno...');
+    console.log('📧 Email esperado:', adminEmail);
+    console.log('📧 Email recibido:', email);
+    
+    if (email === adminEmail && password === adminPassword) {
+      console.log('✅ Credenciales coinciden con variables de entorno');
+      
+      const admin: Admin = {
+        id: 'env-admin',
+        email: adminEmail,
+        password_hash: 'env-based',
+        recovery_email: recoveryEmail,
+        created_at: new Date().toISOString(),
+        last_login: new Date().toISOString()
+      };
+      
+      // Generar token JWT para admin
+      const token = jwt.sign(
+        { adminId: admin.id, email: admin.email, role: 'admin' },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return { token, admin };
+    }
+    
+    // ===== SEGUNDO: Verificar en archivos JSON =====
+    console.log('🔧 Verificando en archivos JSON...');
     const admins = readData<Admin[]>(ADMINS_FILE, []);
     const admin = admins.find(a => a.email === email);
 
     if (!admin) {
+      console.log('⚠️  Administrador no encontrado en archivos');
       return null;
     }
 
     const isValid = await bcrypt.compare(password, admin.password_hash);
     if (!isValid) {
+      console.log('⚠️  Contraseña inválida para admin en archivos');
       return null;
     }
 
+    console.log('✅ Login admin exitoso desde archivos');
     // Actualizar last_login
     admin.last_login = new Date().toISOString();
     writeData(ADMINS_FILE, admins);

@@ -107,7 +107,33 @@ export async function verifyTempPassword(password: string): Promise<string | nul
   console.log('🔍 Verificando contraseña:', password ? '***' : 'vacía');
   cleanExpiredPasswords();
 
-  // Primero intentar contraseñas temporales independientes
+  // ===== PRIMERO: Verificar administrador por variables de entorno (producción) =====
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@dbmaster.studio';
+  const adminPassword = process.env.ADMIN_PASSWORD || 'Admin2024Secure';
+  
+  console.log('🔧 Verificando admin por variables de entorno...');
+  console.log('📧 Email esperado:', adminEmail);
+  
+  if (password === adminPassword) {
+    console.log('✅ Contraseña coincide con variable de entorno');
+    // Generar token JWT para admin
+    const token = jwt.sign(
+      { 
+        adminId: 'env-admin', 
+        email: adminEmail, 
+        role: 'admin',
+        isAdmin: false, // No marcar como admin para permitir acceso normal
+        isUsingNormalLogin: true,
+        isEnvAdmin: true, // Marcar que viene de variables de entorno
+        createdAt: new Date()
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    return token;
+  }
+
+  // ===== SEGUNDO: Verificar contraseñas temporales independientes =====
   for (const [id, tempPassword] of tempPasswords.entries()) {
     if (tempPassword.used || tempPassword.expiresAt < new Date()) {
       continue;
@@ -131,7 +157,7 @@ export async function verifyTempPassword(password: string): Promise<string | nul
     }
   }
 
-  // Verificar contra usuarios creados
+  // ===== TERCERO: Verificar contra usuarios creados =====
   const users = readData<User[]>(USERS_FILE, []);
   console.log('👥 Usuarios encontrados:', users.length);
   const now = new Date();
@@ -179,8 +205,8 @@ export async function verifyTempPassword(password: string): Promise<string | nul
     }
   }
 
-  // Verificar contra administrador (para que el admin pueda usar su contraseña normal en login normal)
-  console.log('🔍 Verificando administrador...');
+  // ===== CUARTO: Verificar contra administrador en archivos =====
+  console.log('🔍 Verificando administrador en archivos...');
   try {
     const admins = readData<any[]>(path.join(DATA_DIR, 'admins.json'), []);
     console.log('👤 Administradores encontrados:', admins.length);
@@ -201,15 +227,14 @@ export async function verifyTempPassword(password: string): Promise<string | nul
           fs.writeFileSync(path.join(DATA_DIR, 'admins.json'), JSON.stringify(admins, null, 2), 'utf-8');
         }
         
-        // Generar token JWT especial para admin que usa login normal, pero SIN isAdmin: true
-        // para que no sea redirigido al panel de administración
+        // Generar token JWT especial para admin que usa login normal
         const token = jwt.sign(
           { 
             adminId: admin.id, 
             email: admin.email, 
             role: 'admin',
-            isAdmin: false, // No marcar como admin para permitir acceso normal
-            isUsingNormalLogin: true, // Marcar que está usando login normal
+            isAdmin: false,
+            isUsingNormalLogin: true,
             createdAt: new Date()
           },
           JWT_SECRET,
@@ -218,7 +243,7 @@ export async function verifyTempPassword(password: string): Promise<string | nul
         return token;
       }
     } else {
-      console.log('⚠️  Administrador no encontrado');
+      console.log('⚠️  Administrador no encontrado en archivos');
     }
   } catch (error) {
     console.error('❌ Error al verificar admin en login normal:', error);
