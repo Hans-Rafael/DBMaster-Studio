@@ -9,6 +9,8 @@ import { AiTutorModal } from './components/AiTutorModal';
 import { VisualJoinHelper } from './components/VisualJoinHelper';
 import { PythonConnectorsView } from './components/PythonConnectorsView';
 import { LoginScreen } from './components/LoginScreen';
+import { AdminLogin } from './components/AdminLogin';
+import { AdminPanel } from './components/AdminPanel';
 
 import { POSTGRESQL_MODULES } from './data/modulesPostgreSQL';
 import { MONGO_GRAPHQL_MODULES } from './data/modulesMongoGraphQL';
@@ -18,8 +20,10 @@ import { Module, Topic, UserProgress, EngineType } from './types/database';
 
 export function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<'student' | 'admin-login' | 'admin-panel'>('student');
 
   // Verificar autenticación al cargar
   useEffect(() => {
@@ -28,8 +32,14 @@ export function App() {
         const response = await fetch('/api/auth/check');
         const data = await response.json();
         setIsAuthenticated(data.authenticated);
+        
+        // También verificar autenticación de admin
+        const adminResponse = await fetch('/api/admin/check');
+        const adminData = await adminResponse.json();
+        setIsAdminAuthenticated(adminData.authenticated);
       } catch (error) {
         setIsAuthenticated(false);
+        setIsAdminAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -41,12 +51,27 @@ export function App() {
     setIsAuthenticated(true);
   };
 
+  const handleAdminLoginSuccess = () => {
+    setIsAdminAuthenticated(true);
+    setCurrentView('admin-panel');
+  };
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setIsAuthenticated(false);
     } catch (error) {
       console.error('Error al hacer logout:', error);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      setIsAdminAuthenticated(false);
+      setCurrentView('student');
+    } catch (error) {
+      console.error('Error al hacer admin logout:', error);
     }
   };
 
@@ -58,13 +83,38 @@ export function App() {
     );
   }
 
+  // Vista de panel de administración
+  if (currentView === 'admin-panel') {
+    if (isAdminAuthenticated) {
+      return <AdminPanel onLogout={handleAdminLogout} />;
+    } else {
+      setCurrentView('admin-login');
+    }
+  }
+
+  // Vista de login de administrador
+  if (currentView === 'admin-login') {
+    return (
+      <AdminLogin 
+        onLoginSuccess={handleAdminLoginSuccess}
+        onBackToMain={() => setCurrentView('student')}
+      />
+    );
+  }
+
+  // Vista normal de estudiantes
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <LoginScreen 
+        onLoginSuccess={handleLoginSuccess}
+        onAdminLogin={() => setCurrentView('admin-login')}
+      />
+    );
   }
 
   // App principal con manejo de errores
   try {
-    return <MainApp onLogout={handleLogout} />;
+    return <MainApp onLogout={handleLogout} onAdminPanel={() => setCurrentView('admin-panel')} />;
   } catch (error) {
     return (
       <div style={{ backgroundColor: '#020617', color: 'white', padding: '20px', minHeight: '100vh' }}>
@@ -76,7 +126,7 @@ export function App() {
   }
 }
 
-function MainApp({ onLogout }: { onLogout: () => void }) {
+function MainApp({ onLogout, onAdminPanel }: { onLogout: () => void; onAdminPanel: () => void }) {
   const allModules: Module[] = [...POSTGRESQL_MODULES, ...MONGO_GRAPHQL_MODULES];
   const [activeTab, setActiveTab] = useState<'study' | 'playground' | 'quizzes' | 'exercises' | 'joins' | 'python'>('study');
   const [selectedModule, setSelectedModule] = useState<Module>(allModules[0]);
@@ -173,6 +223,7 @@ function MainApp({ onLogout }: { onLogout: () => void }) {
         userProgress={userProgress}
         onOpenAiTutor={() => handleAskAiTutor('Consulta libre sobre bases de datos')}
         onLogout={onLogout}
+        onAdminPanel={onAdminPanel}
       />
 
       <div className="flex-1 flex overflow-hidden">

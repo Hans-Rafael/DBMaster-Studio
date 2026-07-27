@@ -20,9 +20,22 @@ DBMaster Studio utiliza un sistema de contraseñas temporales para controlar el 
 - **Contraseñas temporales**: Válidas por 7 días
 - **Formato fácil de recordar**: `palabra1 + palabra2 + número` (ej: `nubesol23`)
 - **Uso único**: Cada contraseña puede usarse una sola vez
-- **Administración simple**: Comandos npm para gestión
+- **Administración web**: Panel de administración completo con Supabase
+- **Administración por comandos**: Comandos npm para gestión (legacy)
 
-### Comandos de Administración
+### Panel de Administración Web
+
+Nuevo sistema de administración web con funcionalidades completas:
+
+- ✅ **Login de administrador** con credenciales dedicadas
+- ✅ **Gestión de usuarios** (crear, editar, eliminar)
+- ✅ **Extensión de sesiones** de usuarios específicos
+- ✅ **Control de permisos** (estudiante, restringido, bloqueado)
+- ✅ **Generación de contraseñas temporales** asociadas a usuarios
+
+Para configurar el panel de administración web, consulta [ADMIN_GUIDE.md](ADMIN_GUIDE.md).
+
+### Comandos de Administración (Legacy)
 
 ```bash
 # Generar una nueva contraseña temporal

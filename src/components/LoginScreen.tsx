@@ -3,9 +3,10 @@ import { Lock, AlertCircle, Loader2 } from 'lucide-react';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
+  onAdminLogin?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onAdminLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -93,9 +94,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
           {/* Info */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 mb-4">
               Las contraseñas temporales expiran después de 7 días
             </p>
+            
+            {onAdminLogin && (
+              <button
+                onClick={onAdminLogin}
+                className="text-xs text-slate-400 hover:text-indigo-400 transition-colors"
+              >
+                ¿Eres administrador? Ingresa aquí
+              </button>
+            )}
           </div>
         </div>
       </div>

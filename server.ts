@@ -11,6 +11,20 @@ import {
   getActivePasswords, 
   deletePassword 
 } from "./auth";
+import {
+  adminLogin,
+  verifyAdminToken,
+  createAdmin,
+  createUser,
+  getAllUsers,
+  getUserById,
+  extendUserSession,
+  updateUserRole,
+  deleteUser,
+  createTempPasswordInDb,
+  getActivePasswordsFromDb,
+  deletePasswordFromDb
+} from "./admin-service";
 
 dotenv.config();
 
@@ -38,7 +52,7 @@ const requireAuth = (req: any, res: any, next: any) => {
   next();
 };
 
-// Middleware de autenticación para admin
+// Middleware de autenticación para admin (antiguo, por compatibilidad)
 const requireAdmin = (req: any, res: any, next: any) => {
   const adminKey = req.headers['x-admin-key'];
   
@@ -46,6 +60,23 @@ const requireAdmin = (req: any, res: any, next: any) => {
     return res.status(403).json({ error: 'No autorizado como admin' });
   }
 
+  next();
+};
+
+// Middleware de autenticación para admin (nuevo, con JWT)
+const requireAdminAuth = (req: any, res: any, next: any) => {
+  const token = req.cookies.admin_token || req.headers['authorization']?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No autorizado - Token requerido' });
+  }
+
+  const decoded = verifyAdminToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+
+  req.admin = decoded;
   next();
 };
 
@@ -109,6 +140,195 @@ app.get('/api/admin/passwords', requireAdmin, (req, res) => {
 app.delete('/api/admin/passwords/:id', requireAdmin, (req, res) => {
   const deleted = deletePassword(req.params.id);
   res.json({ success: deleted });
+});
+
+// ===== NUEVAS RUTAS DE ADMINISTRACIÓN WEB =====
+
+// Login de administrador
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email y contraseña requeridos' });
+    }
+
+    const result = await adminLogin(email, password);
+    
+    if (!result) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    res.cookie('admin_token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Login exitoso',
+      admin: {
+        id: result.admin.id,
+        email: result.admin.email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Logout de administrador
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('admin_token');
+  res.json({ success: true, message: 'Logout exitoso' });
+});
+
+// Verificar autenticación de admin
+app.get('/api/admin/check', (req, res) => {
+  const token = req.cookies.admin_token || req.headers['authorization']?.replace('Bearer ', '');
+  const decoded = token ? verifyAdminToken(token) : null;
+  res.json({ authenticated: !!decoded, admin: decoded });
+});
+
+// ===== GESTIÓN DE USUARIOS =====
+
+// Crear nuevo usuario
+app.post('/api/admin/users', requireAdminAuth, async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username y contraseña requeridos' });
+    }
+
+    const user = await createUser(username, password, email, req.admin.adminId);
+    
+    if (!user) {
+      return res.status(500).json({ error: 'Error al crear usuario' });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Obtener todos los usuarios
+app.get('/api/admin/users', requireAdminAuth, async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Obtener usuario por ID
+app.get('/api/admin/users/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const user = await getUserById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Extender tiempo de sesión de usuario
+app.post('/api/admin/users/:id/extend-session', requireAdminAuth, async (req, res) => {
+  try {
+    const { days } = req.body;
+    const daysToAdd = days || 7;
+    
+    const user = await extendUserSession(req.params.id, daysToAdd);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Actualizar rol de usuario (restringir permisos)
+app.put('/api/admin/users/:id/role', requireAdminAuth, async (req, res) => {
+  try {
+    const { role } = req.body;
+    
+    if (!['student', 'restricted', 'banned'].includes(role)) {
+      return res.status(400).json({ error: 'Rol inválido' });
+    }
+
+    const user = await updateUserRole(req.params.id, role);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Eliminar usuario
+app.delete('/api/admin/users/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const deleted = await deleteUser(req.params.id);
+    res.json({ success: deleted });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// ===== GESTIÓN DE CONTRASEÑAS TEMPORALES (Supabase) =====
+
+// Generar contraseña temporal (Supabase)
+app.post('/api/admin/temp-passwords', requireAdminAuth, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const result = await createTempPasswordInDb(userId);
+    
+    if (!result) {
+      return res.status(500).json({ error: 'Error al generar contraseña' });
+    }
+
+    res.json({
+      id: result.id,
+      password: result.password,
+      expiresAt: result.expiresAt
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Obtener contraseñas activas (Supabase)
+app.get('/api/admin/temp-passwords', requireAdminAuth, async (req, res) => {
+  try {
+    const passwords = await getActivePasswordsFromDb();
+    res.json({ passwords });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+// Eliminar contraseña temporal (Supabase)
+app.delete('/api/admin/temp-passwords/:id', requireAdminAuth, async (req, res) => {
+  try {
+    const deleted = await deletePasswordFromDb(req.params.id);
+    res.json({ success: deleted });
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
 });
 
 // Initialize Gemini Client
