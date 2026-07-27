@@ -32,6 +32,14 @@ import { verifyEmailConnection } from "./email-service";
 
 dotenv.config();
 
+console.log('🚀 Iniciando servidor DBMaster Studio...');
+console.log('🔧 Variables de entorno:');
+console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL ? '✅ Configurado' : '❌ No configurado');
+console.log('🔐 ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD ? '✅ Configurado' : '❌ No configurado');
+console.log('🔑 JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '❌ No configurado');
+console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('🔌 PORT:', process.env.PORT || '3000');
+
 // Verificar conexión SMTP al inicio (no crítico para el funcionamiento)
 verifyEmailConnection().then(success => {
   if (success) {
@@ -45,16 +53,13 @@ verifyEmailConnection().then(success => {
   console.log('⚠️  El resto del sistema funcionará normalmente sin correo');
 });
 
-// Verificar variables de entorno críticas
-console.log('🔧 Verificando variables de entorno...');
-console.log('📧 ADMIN_EMAIL:', process.env.ADMIN_EMAIL ? '✅ Configurado' : '❌ No configurado');
-console.log('🔐 ADMIN_PASSWORD:', process.env.ADMIN_PASSWORD ? '✅ Configurado' : '❌ No configurado');
-console.log('🔑 JWT_SECRET:', process.env.JWT_SECRET ? '✅ Configurado' : '❌ No configurado');
-console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
-
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-change-in-production';
+
+console.log('🔌 Configuración del servidor:');
+console.log('📍 Puerto:', PORT);
+console.log('🌐 Escuchar en: 0.0.0.0');
 
 app.use(express.json());
 app.use(cookieParser());
@@ -625,7 +630,15 @@ async function setupServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor DBMaster Studio escuchando en http://0.0.0.0:${PORT}`);
+    console.log(`✅ Servidor DBMaster Studio iniciado exitosamente`);
+    console.log(`🌐 Escuchando en http://0.0.0.0:${PORT}`);
+    console.log(`🔧 Variables de entorno cargadas`);
+    console.log(`📧 ADMIN_EMAIL: ${process.env.ADMIN_EMAIL ? '✅' : '❌'}`);
+    console.log(`🔐 ADMIN_PASSWORD: ${process.env.ADMIN_PASSWORD ? '✅' : '❌'}`);
+    console.log(`🔑 JWT_SECRET: ${process.env.JWT_SECRET ? '✅' : '❌'}`);
+  }).on('error', (err) => {
+    console.error('❌ Error al iniciar servidor:', err);
+    process.exit(1);
   });
 }
 
