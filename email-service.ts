@@ -36,25 +36,19 @@ function getTransporter(): nodemailer.Transporter | null {
   // Si ya existe un transporter, reutilizarlo
   if (transporter) return transporter;
 
-  // Crear nuevo transporter con defaults
+  // Crear nuevo transporter siguiendo las mejores prácticas de nodemailer
   transporter = nodemailer.createTransport({
     host: config.host,
     port: config.port,
-    secure: false, // true for 465, false for other ports
+    secure: false, // use STARTTLS (upgrade connection to TLS after connecting)
     auth: {
       user: config.user,
       pass: config.password,
     },
-    // Defaults para todos los correos
+    // Defaults para todos los correos (best practice)
     defaults: {
       from: config.from,
     },
-    // Opciones adicionales para resolver problemas de conectividad
-    tls: {
-      rejectUnauthorized: false, // Desactivar verificación estricta SSL
-    },
-    // Opciones de familia de direcciones para forzar IPv4
-    family: 4, // 4 = IPv4, 6 = IPv6, 0 = both
   });
 
   return transporter;
@@ -149,9 +143,32 @@ export async function sendPasswordRecoveryEmail(
     });
 
     console.log('✅ Correo enviado:', info.messageId);
+    
+    // Manejo de rechazos (partial success)
+    if (info.rejected && info.rejected.length > 0) {
+      console.warn('⚠️  Algunos destinatarios fueron rechazados:', info.rejected);
+    }
+    
     return true;
-  } catch (error) {
-    console.error('❌ Error al enviar correo:', error);
+  } catch (error: any) {
+    console.error('❌ Error al enviar correo:', error.message);
+    
+    // Manejo de errores específicos según documentación
+    switch (error.code) {
+      case 'ECONNECTION':
+      case 'ETIMEDOUT':
+        console.error('Error de red - reintentar más tarde');
+        break;
+      case 'EAUTH':
+        console.error('Error de autenticación SMTP');
+        break;
+      case 'EENVELOPE':
+        console.error('Error de destinatario:', error.rejected || []);
+        break;
+      default:
+        console.error('Error al enviar:', error.message);
+    }
+    
     return false;
   }
 }
@@ -230,9 +247,32 @@ export async function sendUserCreationEmail(
     });
 
     console.log('✅ Correo de creación enviado:', info.messageId);
+    
+    // Manejo de rechazos (partial success)
+    if (info.rejected && info.rejected.length > 0) {
+      console.warn('⚠️  Algunos destinatarios fueron rechazados:', info.rejected);
+    }
+    
     return true;
-  } catch (error) {
-    console.error('❌ Error al enviar correo de creación:', error);
+  } catch (error: any) {
+    console.error('❌ Error al enviar correo de creación:', error.message);
+    
+    // Manejo de errores específicos según documentación
+    switch (error.code) {
+      case 'ECONNECTION':
+      case 'ETIMEDOUT':
+        console.error('Error de red - reintentar más tarde');
+        break;
+      case 'EAUTH':
+        console.error('Error de autenticación SMTP');
+        break;
+      case 'EENVELOPE':
+        console.error('Error de destinatario:', error.rejected || []);
+        break;
+      default:
+        console.error('Error al enviar:', error.message);
+    }
+    
     return false;
   }
 }
